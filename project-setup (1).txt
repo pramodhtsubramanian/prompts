@@ -1,0 +1,358 @@
+// File: package.json (backend)
+{
+  "name": "hr-data-correction-agent",
+  "version": "1.0.0",
+  "description": "AI-powered data correction agent for HR and payroll data",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn src/index.ts",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.433.0",
+    "@aws-sdk/lib-dynamodb": "^3.433.0",
+    "@opensearch-project/opensearch": "^2.5.0",
+    "anthropic": "^0.22.0",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "csv-parse": "^5.5.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "lodash": "^4.17.21",
+    "python-shell": "^5.0.0",
+    "uuid": "^9.0.1",
+    "vm2": "^3.9.19"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.15",
+    "@types/express": "^4.17.20",
+    "@types/jest": "^29.5.6",
+    "@types/lodash": "^4.14.200",
+    "@types/node": "^20.8.7",
+    "@types/uuid": "^9.0.6",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.2.2"
+  }
+}
+
+// File: tsconfig.json (backend)
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "**/*.test.ts"]
+}
+
+// File: .env (backend)
+PORT=3000
+AWS_REGION=us-east-1
+ANTHROPIC_API_KEY=your_anthropic_api_key
+OPENSEARCH_ENDPOINT=https://localhost:9200
+OPENSEARCH_USERNAME=admin
+OPENSEARCH_PASSWORD=admin
+DATA_ROOT_PATH=./data
+TMP_DIR=./tmp
+
+// File: data/README.md
+# Data Directory Structure
+
+This directory contains all the CSV data files for the HR data correction agent.
+
+## Structure
+
+```
+data/
+├── worker_data/
+│   ├── worker_profile.csv
+│   ├── worker_employment.csv
+│   └── worker_position.csv
+├── position_data/
+│   ├── position_details.csv
+│   └── position_hierarchy.csv
+├── payroll_data/
+│   ├── payroll_details.csv
+│   └── payroll_history.csv
+├── company_data/
+│   ├── legal_entity.csv
+│   ├── department.csv
+│   └── location.csv
+└── payroll_setup/
+    ├── pay_group.csv
+    └── pay_component.csv
+```
+
+Each subdirectory represents a dataset, and each CSV file represents a table within that dataset.
+
+## Backups
+
+When data modifications are made, backups are automatically created in a `backups` subdirectory within each dataset directory.
+
+// File: frontend/package.json
+{
+  "name": "hr-data-correction-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.58",
+    "@types/react": "^18.2.28",
+    "@types/react-dom": "^18.2.13",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.17.0",
+    "react-scripts": "5.0.1",
+    "react-syntax-highlighter": "^15.5.0",
+    "typescript": "^4.9.5",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@types/react-syntax-highlighter": "^15.5.8"
+  }
+}
+
+// File: frontend/.env
+REACT_APP_API_BASE_URL=http://localhost:3000/api
+
+// File: serverless.yml
+service: hr-data-correction-agent
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  memorySize: 1024
+  timeout: 30
+  environment:
+    NODE_ENV: ${opt:stage, 'dev'}
+    ANTHROPIC_API_KEY: ${param:ANTHROPIC_API_KEY}
+    DYNAMODB_SESSIONS_TABLE: ${self:service}-${opt:stage, 'dev'}-sessions
+    DYNAMODB_OPERATIONS_TABLE: ${self:service}-${opt:stage, 'dev'}-operations
+    DYNAMODB_TABLE_METADATA_TABLE: ${self:service}-${opt:stage, 'dev'}-table-metadata
+    DYNAMODB_FIELD_METADATA_TABLE: ${self:service}-${opt:stage, 'dev'}-field-metadata
+    OPENSEARCH_ENDPOINT: ${param:OPENSEARCH_ENDPOINT}
+    OPENSEARCH_USERNAME: ${param:OPENSEARCH_USERNAME}
+    OPENSEARCH_PASSWORD: ${param:OPENSEARCH_PASSWORD}
+    DATA_BUCKET: ${self:service}-${opt:stage, 'dev'}-data
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - !GetAtt SessionsTable.Arn
+        - !GetAtt OperationsTable.Arn
+        - !GetAtt TableMetadataTable.Arn
+        - !GetAtt FieldMetadataTable.Arn
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+        - s3:ListBucket
+      Resource:
+        - !GetAtt DataBucket.Arn
+        - !Join ['', [!GetAtt DataBucket.Arn, '/*']]
+
+functions:
+  api:
+    handler: dist/lambda.handler
+    events:
+      - httpApi:
+          path: /api/{proxy+}
+          method: any
+      - httpApi:
+          path: /api
+          method: any
+
+resources:
+  Resources:
+    SessionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_SESSIONS_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: sessionId
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: sessionId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: UserIdIndex
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    OperationsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_OPERATIONS_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: operationId
+            AttributeType: S
+          - AttributeName: sessionId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: operationId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: SessionIdIndex
+            KeySchema:
+              - AttributeName: sessionId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    TableMetadataTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_METADATA_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: tableId
+            AttributeType: S
+          - AttributeName: tableName
+            AttributeType: S
+        KeySchema:
+          - AttributeName: tableId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: TableNameIndex
+            KeySchema:
+              - AttributeName: tableName
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    FieldMetadataTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_FIELD_METADATA_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: fieldId
+            AttributeType: S
+          - AttributeName: tableName
+            AttributeType: S
+        KeySchema:
+          - AttributeName: fieldId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: TableNameIndex
+            KeySchema:
+              - AttributeName: tableName
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    DataBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.DATA_BUCKET}
+        CorsConfiguration:
+          CorsRules:
+            - AllowedHeaders:
+                - '*'
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+                - DELETE
+                - HEAD
+              AllowedOrigins:
+                - '*'
+              MaxAge: 3000
+
+    FrontendBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:service}-${opt:stage, 'dev'}-frontend
+        WebsiteConfiguration:
+          IndexDocument: index.html
+          ErrorDocument: index.html
+
+    CloudFrontDistribution:
+      Type: AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Origins:
+            - DomainName: !GetAtt FrontendBucket.RegionalDomainName
+              Id: WebsiteOrigin
+              S3OriginConfig:
+                OriginAccessIdentity: ''
+          Enabled: true
+          DefaultRootObject: index.html
+          DefaultCacheBehavior:
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            TargetOriginId: WebsiteOrigin
+            ForwardedValues:
+              QueryString: false
+              Cookies:
+                Forward: none
+            ViewerProtocolPolicy: redirect-to-https
+          CustomErrorResponses:
+            - ErrorCode: 404
+              ResponseCode: 200
+              ResponsePagePath: /index.html
+
+  Outputs:
+    ApiUrl:
+      Description: URL of the API Gateway
+      Value: !Sub https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${opt:stage, 'dev'}
+    FrontendUrl:
+      Description: URL of the CloudFront distribution
+      Value: !GetAtt CloudFrontDistribution.DomainName

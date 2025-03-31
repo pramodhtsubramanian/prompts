@@ -1,0 +1,49 @@
+sequenceDiagram
+    actor User
+    participant UI as UI
+    participant API as Express API
+    participant Agent as Data Correction Agent
+    participant LLM as Claude 3.7 Sonnet
+    participant VS as Vector Store
+    participant CSV as CSV Data
+    participant DDB as DynamoDB
+    
+    User->>UI: Enter data correction query
+    UI->>API: Send query
+    API->>DDB: Create/update chat session
+    API->>Agent: Process query
+    
+    Agent->>LLM: Analyze intent
+    LLM-->>Agent: Return intent analysis
+    
+    Agent->>VS: Search for relevant tables/columns
+    VS-->>Agent: Return potential matches
+    
+    Agent->>LLM: Confirm table/column selection
+    LLM-->>Agent: Validate selection
+    
+    Agent->>UI: Ask for confirmation of tables/columns
+    UI->>User: Show confirmation dialog
+    User->>UI: Confirm table/column selection
+    UI->>Agent: Send confirmation
+    
+    Agent->>CSV: Read sample data
+    CSV-->>Agent: Return sample data
+    
+    Agent->>LLM: Generate transformation code
+    LLM-->>Agent: Return Python/JS functions
+    
+    Agent->>Agent: Apply functions to sample data
+    
+    Agent->>UI: Present sample transformation
+    UI->>User: Show sample results
+    User->>UI: Approve transformation
+    UI->>Agent: Send approval
+    
+    Agent->>CSV: Process full dataset
+    Agent->>CSV: Write transformed data
+    
+    Agent->>UI: Report completion
+    UI->>User: Show success message and results
+    
+    Agent->>DDB: Store completed transformation details

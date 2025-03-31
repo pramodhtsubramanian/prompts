@@ -1,0 +1,65 @@
+flowchart TD
+    subgraph "Client"
+        Browser[Web Browser]
+    end
+    
+    subgraph "CloudFront CDN"
+        CF[CloudFront Distribution]
+    end
+    
+    subgraph "S3"
+        StaticAssets[React Frontend Assets]
+    end
+    
+    subgraph "API Gateway"
+        APIGW[API Gateway]
+    end
+    
+    subgraph "Lambda"
+        ExpressApp[Express.js API Lambda]
+    end
+    
+    subgraph "DynamoDB"
+        Sessions[Chat Sessions Table]
+        Operations[Data Operations Table]
+        TableMeta[Table Metadata]
+        FieldMeta[Field Metadata]
+    end
+    
+    subgraph "OpenSearch"
+        VectorStore[Vector Embeddings Index]
+    end
+    
+    subgraph "S3 Data Lake"
+        CSVFiles[HR Data CSV Files]
+        Backups[Backup CSV Files]
+    end
+    
+    subgraph "Anthropic API"
+        Claude[Claude 3.7 Sonnet]
+    end
+    
+    Browser <--> CF
+    CF <--> StaticAssets
+    Browser <--> APIGW
+    APIGW <--> ExpressApp
+    ExpressApp <--> Sessions
+    ExpressApp <--> Operations
+    ExpressApp <--> TableMeta
+    ExpressApp <--> FieldMeta
+    ExpressApp <--> VectorStore
+    ExpressApp <--> CSVFiles
+    ExpressApp <--> Backups
+    ExpressApp <--> Claude
+    
+    classDef client fill:#f9f,stroke:#333,stroke-width:2px
+    classDef staticassets fill:#feb,stroke:#333,stroke-width:2px
+    classDef api fill:#9cf,stroke:#333,stroke-width:2px
+    classDef data fill:#9f9,stroke:#333,stroke-width:2px
+    classDef ai fill:#fc9,stroke:#333,stroke-width:2px
+    
+    class Browser client
+    class CF,StaticAssets staticassets
+    class APIGW,ExpressApp api
+    class Sessions,Operations,TableMeta,FieldMeta,VectorStore,CSVFiles,Backups data
+    class Claude ai

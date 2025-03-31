@@ -1,0 +1,370 @@
+// File: frontend/src/contexts/SessionContext.tsx
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+interface Message {
+  sender: 'user' | 'bot';
+  content: any;
+}
+
+interface SessionContextType {
+  sessionId: string;
+  setSessionId: (id: string) => void;
+  messages: Message[];
+  setMessages: (messages: Message[]) => void;
+  loading: boolean;
+  setLoading: (loading: boolean) => void;
+}
+
+const SessionContext = createContext<SessionContextType | undefined>(undefined);
+
+interface SessionProviderProps {
+  children: ReactNode;
+}
+
+export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) => {
+  const [sessionId, setSessionId] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
+  
+  // Load session from localStorage if available
+  useEffect(() => {
+    const savedSession = localStorage.getItem('chatSession');
+    if (savedSession) {
+      try {
+        const { sessionId: savedId, messages: savedMessages } = JSON.parse(savedSession);
+        setSessionId(savedId);
+        setMessages(savedMessages);
+      } catch (error) {
+        console.error('Failed to parse saved session:', error);
+        localStorage.removeItem('chatSession');
+      }
+    }
+  }, []);
+  
+  // Save session to localStorage when it changes
+  useEffect(() => {
+    if (sessionId) {
+      localStorage.setItem('chatSession', JSON.stringify({ sessionId, messages }));
+    }
+  }, [sessionId, messages]);
+  
+  return (
+    <SessionContext.Provider
+      value={{
+        sessionId,
+        setSessionId,
+        messages,
+        setMessages,
+        loading,
+        setLoading,
+      }}
+    >
+      {children}
+    </SessionContext.Provider>
+  );
+};
+
+export const useSession = (): SessionContextType => {
+  const context = useContext(SessionContext);
+  if (context === undefined) {
+    throw new Error('useSession must be used within a SessionProvider');
+  }
+  return context;
+};
+
+// File: frontend/src/services/api.ts
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3000/api';
+
+/**
+ * Send a message to the agent
+ */
+export const sendMessage = async (sessionId: string, message: string) => {
+  const response = await fetch(`${API_BASE_URL}/agent/message`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sessionId,
+      message,
+    }),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to send message');
+  }
+  
+  return await response.json();
+};
+
+/**
+ * Confirm table and column selection
+ */
+export const confirmSelection = async (sessionId: string, confirmed: boolean, tables?: string[]) => {
+  const response = await fetch(`${API_BASE_URL}/agent/confirm-selection`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sessionId,
+      confirmed,
+      tables,
+    }),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to confirm selection');
+  }
+  
+  return await response.json();
+};
+
+/**
+ * Apply or cancel a transformation
+ */
+export const applyTransformation = async (sessionId: string, apply: boolean) => {
+  const response = await fetch(`${API_BASE_URL}/agent/apply-transformation`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sessionId,
+      apply,
+    }),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to apply transformation');
+  }
+  
+  return await response.json();
+};
+
+/**
+ * Get user's previous sessions
+ */
+export const getUserSessions = async (userId: string) => {
+  const response = await fetch(`${API_BASE_URL}/session/user/${userId}`);
+  
+  if (!response.ok) {
+    throw new Error('Failed to get user sessions');
+  }
+  
+  return await response.json();
+};
+
+/**
+ * Get dataset metadata
+ */
+export const getDatasetMetadata = async () => {
+  const response = await fetch(`${API_BASE_URL}/datastore/datasets`);
+  
+  if (!response.ok) {
+    throw new Error('Failed to get dataset metadata');
+  }
+  
+  return await response.json();
+};
+
+// File: frontend/src/components/Sidebar.tsx
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { getUserSessions, getDatasetMetadata } from '../services/api';
+import './Sidebar.css';
+
+const Sidebar: React.FC = () => {
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [datasets, setDatasets] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'sessions' | 'datasets'>('sessions');
+  const [loading, setLoading] = useState(false);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Use a default user ID for demo purposes
+        const sessionData = await getUserSessions('default-user');
+        setSessions(sessionData);
+        
+        const datasetData = await getDatasetMetadata();
+        setDatasets(datasetData);
+      } catch (error) {
+        console.error('Error fetching sidebar data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+  
+  return (
+    <div className="sidebar">
+      <div className="sidebar-tabs">
+        <button
+          className={`tab-button ${activeTab === 'sessions' ? 'active' : ''}`}
+          onClick={() => setActiveTab('sessions')}
+        >
+          Sessions
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'datasets' ? 'active' : ''}`}
+          onClick={() => setActiveTab('datasets')}
+        >
+          Datasets
+        </button>
+      </div>
+      
+      <div className="sidebar-content">
+        {loading ? (
+          <div className="loading-indicator">Loading...</div>
+        ) : activeTab === 'sessions' ? (
+          <div className="sessions-list">
+            <h3>Recent Sessions</h3>
+            {sessions.length === 0 ? (
+              <p>No recent sessions found.</p>
+            ) : (
+              <ul>
+                {sessions.map((session) => (
+                  <li key={session.sessionId}>
+                    <Link to={`/?session=${session.sessionId}`}>
+                      <div className="session-item">
+                        <div className="session-date">
+                          {new Date(session.createdAt).toLocaleDateString()}
+                        </div>
+                        <div className="session-preview">
+                          {session.conversationHistory[0]?.message.slice(0, 30)}...
+                        </div>
+                        <div className="session-status">
+                          {session.status}
+                        </div>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : (
+          <div className="datasets-list">
+            <h3>Available Datasets</h3>
+            {datasets.length === 0 ? (
+              <p>No datasets found.</p>
+            ) : (
+              <div>
+                {datasets.map((dataset, index) => (
+                  <div key={index} className="dataset-item">
+                    <h4>{dataset.name}</h4>
+                    <p>Tables: {dataset.tables.length}</p>
+                    <details>
+                      <summary>Show Tables</summary>
+                      <ul className="table-list">
+                        {dataset.tables.map((table: string, i: number) => (
+                          <li key={i}>{table}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Sidebar;
+
+// File: frontend/src/components/Header.tsx
+import React from 'react';
+import { Link } from 'react-router-dom';
+import './Header.css';
+
+const Header: React.FC = () => {
+  return (
+    <header className="header">
+      <div className="logo">
+        <Link to="/">HR Data Correction Agent</Link>
+      </div>
+      <nav className="nav">
+        <Link to="/" className="nav-link">Chat</Link>
+        <Link to="/preview" className="nav-link">Data Preview</Link>
+      </nav>
+      <div className="user-info">
+        <span className="user-name">User</span>
+      </div>
+    </header>
+  );
+};
+
+export default Header;
+
+// File: frontend/src/components/DataTable.tsx
+import React from 'react';
+import './DataTable.css';
+
+interface DataTableProps {
+  data: any[];
+  tableName: string;
+}
+
+const DataTable: React.FC<DataTableProps> = ({ data, tableName }) => {
+  if (!data || data.length === 0) {
+    return <div className="empty-table">No data available for {tableName}</div>;
+  }
+  
+  // Get column headers from the first row
+  const columns = Object.keys(data[0]);
+  
+  return (
+    <div className="data-table-container">
+      <table className="data-table">
+        <thead>
+          <tr>
+            {columns.map((column) => (
+              <th key={column}>{column}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row, rowIndex) => (
+            <tr key={rowIndex}>
+              {columns.map((column) => (
+                <td key={`${rowIndex}-${column}`}>{row[column]?.toString() || ''}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+export default DataTable;
+
+// File: frontend/src/components/CodeViewer.tsx
+import React from 'react';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import './CodeViewer.css';
+
+interface CodeViewerProps {
+  code: string;
+  language: string;
+}
+
+const CodeViewer: React.FC<CodeViewerProps> = ({ code, language }) => {
+  return (
+    <div className="code-viewer">
+      <SyntaxHighlighter language={language} style={vscDarkPlus}>
+        {code}
+      </SyntaxHighlighter>
+    </div>
+  );
+};
+
+export default CodeViewer;

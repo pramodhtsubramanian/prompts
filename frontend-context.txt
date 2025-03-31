@@ -1,0 +1,220 @@
+// File: frontend/src/contexts/SessionContext.tsx
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+interface Message {
+  sender: 'user' | 'bot';
+  content: any;
+}
+
+interface SessionContextType {
+  sessionId: string;
+  setSessionId: (id: string) => void;
+  messages: Message[];
+  setMessages: (messages: Message[]) => void;
+  loading: boolean;
+  setLoading: (loading: boolean) => void;
+}
+
+const SessionContext = createContext<SessionContextType | undefined>(undefined);
+
+interface SessionProviderProps {
+  children: ReactNode;
+}
+
+export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) => {
+  const [sessionId, setSessionId] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
+  
+  // Load session from localStorage if available
+  useEffect(() => {
+    const savedSession = localStorage.getItem('chatSession');
+    if (savedSession) {
+      try {
+        const { sessionId: savedId, messages: savedMessages } = JSON.parse(savedSession);
+        setSessionId(savedId);
+        setMessages(savedMessages);
+      } catch (error) {
+        console.error('Failed to parse saved session:', error);
+        localStorage.removeItem('chatSession');
+      }
+    }
+  }, []);
+  
+  // Save session to localStorage when it changes
+  useEffect(() => {
+    if (sessionId) {
+      localStorage.setItem('chatSession', JSON.stringify({ sessionId, messages }));
+    }
+  }, [sessionId, messages]);
+  
+  return (
+    <SessionContext.Provider
+      value={{
+        sessionId,
+        setSessionId,
+        messages,
+        setMessages,
+        loading,
+        setLoading,
+      }}
+    >
+      {children}
+    </SessionContext.Provider>
+  );
+};
+
+export const useSession = (): SessionContextType => {
+  const context = useContext(SessionContext);
+  if (context === undefined) {
+    throw new Error('useSession must be used within a SessionProvider');
+  }
+  return context;
+};
+
+// File: frontend/src/services/api.ts
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3000/api';
+
+/**
+ * Send a message to the agent
+ */
+export const sendMessage = async (sessionId: string, message: string) => {
+  const response = await fetch(`${API_BASE_URL}/agent/message`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sessionId,
+      message,
+    }),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to send message');
+  }
+  
+  return await response.json();
+};
+
+/**
+ * Confirm table and column selection
+ */
+export const confirmSelection = async (sessionId: string, confirmed: boolean, tables?: string[]) => {
+  const response = await fetch(`${API_BASE_URL}/agent/confirm-selection`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sessionId,
+      confirmed,
+      tables,
+    }),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to confirm selection');
+  }
+  
+  return await response.json();
+};
+
+/**
+ * Apply or cancel a transformation
+ */
+export const applyTransformation = async (sessionId: string, apply: boolean) => {
+  const response = await fetch(`${API_BASE_URL}/agent/apply-transformation`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sessionId,
+      apply,
+    }),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to apply transformation');
+  }
+  
+  return await response.json();
+};
+
+/**
+ * Get user's previous sessions
+ */
+export const getUserSessions = async (userId: string) => {
+  const response = await fetch(`${API_BASE_URL}/session/user/${userId}`);
+  
+  if (!response.ok) {
+    throw new Error('Failed to get user sessions');
+  }
+  
+  return await response.json();
+};
+
+/**
+ * Get dataset metadata
+ */
+export const getDatasetMetadata = async () => {
+  const response = await fetch(`${API_BASE_URL}/datastore/datasets`);
+  
+  if (!response.ok) {
+    throw new Error('Failed to get dataset metadata');
+  }
+  
+  return await response.json();
+};
+
+// File: frontend/src/components/Sidebar.tsx
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { getUserSessions, getDatasetMetadata } from '../services/api';
+import './Sidebar.css';
+
+const Sidebar: React.FC = () => {
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [datasets, setDatasets] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'sessions' | 'datasets'>('sessions');
+  const [loading, setLoading] = useState(false);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Use a default user ID for demo purposes
+        const sessionData = await getUserSessions('default-user');
+        setSessions(sessionData);
+        
+        const datasetData = await getDatasetMetadata();
+        setDatasets(datasetData);
+      } catch (error) {
+        console.error('Error fetching sidebar data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+  
+  return (
+    <div className="sidebar">
+      <div className="sidebar-tabs">
+        <button
+          className={`tab-button ${activeTab === 'sessions' ? 'active' : ''}`}
+          onClick={() => setActiveTab('sessions')}
+        >
+          Sessions
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'datasets' ? 'active' : ''}`}
+          onClick={() => setActiveTab('datasets')}
+        >
+          Datasets
+        </button>
+      </div>
+      
+      <div className="sidebar-content">

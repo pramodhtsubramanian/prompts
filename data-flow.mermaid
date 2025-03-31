@@ -1,0 +1,52 @@
+flowchart TD
+    User[User] -->|1. Enters data correction query| UI
+    UI -->|2. Sends query| API
+    API -->|3. Stores session| DDB[(DynamoDB)]
+    API -->|4. Processes query| Agent[Data Correction Agent]
+    
+    Agent -->|5. Analyzes intent| Claude[Claude 3.7 Sonnet]
+    Claude -->|6. Returns intent analysis| Agent
+    
+    Agent -->|7. Searches for relevant tables/columns| VS[Vector Store]
+    VS -->|8. Returns potential matches| Agent
+    
+    Agent -->|9. Confirms table/column selection| Claude
+    Claude -->|10. Validates selection| Agent
+    
+    Agent -->|11. Reads sample data| CSV[(CSV Files)]
+    CSV -->|12. Returns sample data| Agent
+    
+    Agent -->|13. Generates transformation code| Claude
+    Claude -->|14. Returns Python/JS code| Agent
+    
+    Agent -->|15. Applies to sample data| SampleProcessor
+    SampleProcessor -->|16. Returns transformed samples| Agent
+    
+    Agent -->|17. Presents confirmation| API
+    API -->|18. Shows confirmation UI| UI
+    UI -->|19. User confirms| User
+    
+    User -->|20. Approves transformation| UI
+    UI -->|21. Sends approval| API
+    API -->|22. Executes full transformation| Agent
+    
+    Agent -->|23. Processes all data| FullProcessor
+    FullProcessor -->|24. Updates data files| CSV
+    
+    Agent -->|25. Reports completion| API
+    API -->|26. Shows success message| UI
+    UI -->|27. Displays results| User
+    
+    classDef user fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef ui fill:#bbf,stroke:#33f,stroke-width:2px;
+    classDef api fill:#bfb,stroke:#3f3,stroke-width:2px;
+    classDef agent fill:#fbf,stroke:#f3f,stroke-width:2px;
+    classDef storage fill:#fbb,stroke:#f33,stroke-width:2px;
+    classDef ai fill:#bff,stroke:#3ff,stroke-width:2px;
+    
+    class User user;
+    class UI ui;
+    class API api;
+    class Agent,SampleProcessor,FullProcessor agent;
+    class DDB,CSV storage;
+    class Claude,VS ai;

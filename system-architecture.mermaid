@@ -1,0 +1,55 @@
+flowchart TB
+    subgraph "Frontend"
+        UI[React UI]
+        TS[TypeScript]
+    end
+    
+    subgraph "Backend"
+        API[Express API]
+        AgentLogic[Data Correction Agent]
+        FunctionGen[Function Generator]
+        QueryAnalyzer[Query Analyzer]
+        TableResolver[Table/Column Resolver]
+        DataReader[CSV Data Reader]
+        DataTransformer[Data Transformer]
+    end
+    
+    subgraph "AI Services"
+        LLM[Claude 3.7 Sonnet]
+        VS[Vector Store]
+    end
+    
+    subgraph "Data Storage"
+        DDB[DynamoDB]
+        OpenSearch[OpenSearch]
+        CSVStore[CSV Data Storage]
+    end
+    
+    UI <--> API
+    API <--> AgentLogic
+    AgentLogic <--> QueryAnalyzer
+    AgentLogic <--> TableResolver
+    AgentLogic <--> DataReader
+    AgentLogic <--> FunctionGen
+    AgentLogic <--> DataTransformer
+    
+    QueryAnalyzer <--> LLM
+    TableResolver <--> VS
+    TableResolver <--> LLM
+    VS <--> OpenSearch
+    
+    FunctionGen <--> LLM
+    
+    DDB <--> API
+    OpenSearch <--> API
+    CSVStore <--> DataReader
+    
+    classDef frontend fill:#d5e8d4,stroke:#82b366;
+    classDef backend fill:#dae8fc,stroke:#6c8ebf;
+    classDef ai fill:#ffe6cc,stroke:#d79b00;
+    classDef storage fill:#f8cecc,stroke:#b85450;
+    
+    class UI,TS frontend;
+    class API,AgentLogic,FunctionGen,QueryAnalyzer,TableResolver,DataReader,DataTransformer backend;
+    class LLM,VS ai;
+    class DDB,OpenSearch,CSVStore storage;

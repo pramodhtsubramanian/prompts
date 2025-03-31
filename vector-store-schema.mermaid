@@ -1,0 +1,49 @@
+classDiagram
+    class FieldVectorDocument {
+        +String id
+        +String tableName
+        +String fieldName
+        +String description
+        +String dataType
+        +List~String~ possibleValues
+        +List~String~ relatedFields
+        +List~Float~ embeddingVector
+        +String searchText
+    }
+    
+    class TableVectorDocument {
+        +String id
+        +String tableName
+        +String description
+        +String dataSet
+        +List~String~ fieldNames
+        +List~String~ primaryKeys
+        +List~String~ foreignKeys
+        +List~Float~ embeddingVector
+        +String searchText
+    }
+    
+    class DatasetVectorDocument {
+        +String id
+        +String datasetName
+        +String description
+        +List~String~ tables
+        +List~Float~ embeddingVector
+        +String searchText
+    }
+    
+    class ConceptVectorDocument {
+        +String id
+        +String conceptName
+        +String description
+        +List~String~ relatedTables
+        +List~String~ relatedFields
+        +List~String~ synonyms
+        +List~Float~ embeddingVector
+        +String searchText
+    }
+    
+    DatasetVectorDocument "1" --> "many" TableVectorDocument: contains
+    TableVectorDocument "1" --> "many" FieldVectorDocument: has
+    ConceptVectorDocument "1" --> "many" FieldVectorDocument: relates to
+    ConceptVectorDocument "1" --> "many" TableVectorDocument: relates to

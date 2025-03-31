@@ -1,0 +1,56 @@
+erDiagram
+    ChatSession {
+        string sessionId PK
+        string userId
+        timestamp createdAt
+        timestamp updatedAt
+        string status
+        json conversationHistory
+        json metadata
+    }
+    
+    DataOperation {
+        string operationId PK
+        string sessionId FK
+        timestamp createdAt
+        string operationType
+        string status
+        json affectedTables
+        json transformationCode
+        int recordsAffected
+        json beforeSample
+        json afterSample
+    }
+    
+    FieldGuide {
+        string fieldId PK
+        string tableName
+        string fieldName
+        string description
+        string dataType
+        string[] possibleValues
+        string[] relatedFields
+        float embeddingVector
+    }
+    
+    TableMetadata {
+        string tableId PK
+        string tableName
+        string description
+        string dataSet
+        json schema
+        float embeddingVector
+    }
+    
+    DatasetMetadata {
+        string datasetId PK
+        string datasetName
+        string description
+        timestamp lastUpdated
+        int recordCount
+        string[] tables
+    }
+    
+    ChatSession ||--o{ DataOperation : "has"
+    TableMetadata ||--o{ FieldGuide : "contains"
+    DatasetMetadata ||--o{ TableMetadata : "contains"
